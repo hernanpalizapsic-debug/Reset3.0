@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run:*)",
+      "Bash(node scripts/uploadAudios.mjs)",
+      "Bash(npx vercel:*)",
+      "Bash(node scripts/setAdmin.mjs)",
+      "Bash(node -e ':*)",
+      "Bash(npx firebase:*)",
+      "Bash(node scripts/deployRules.mjs)"
+    ]
+  }
+}

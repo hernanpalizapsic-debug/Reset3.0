@@ -1,0 +1,13 @@
+{
+  "rewrites": [{ "source": "/((?!api/).*)", "destination": "/index.html" }],
+  "crons": [
+    {
+      "path": "/api/recordatorio-manana",
+      "schedule": "0 12 * * *"
+    },
+    {
+      "path": "/api/recordatorio-noche",
+      "schedule": "0 0 * * *"
+    }
+  ]
+}
