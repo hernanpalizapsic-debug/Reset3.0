@@ -15,6 +15,36 @@ service cloud.firestore {
     match /usuarios/{uid} {
       allow read, write: if isOwner(uid);
       allow read: if isAdmin();
+
+      // Wearables (Fitbit/Oura/etc.): estado de conexión.
+      // Read-only desde cliente. La escritura es exclusiva de Cloud
+      // Functions con Admin SDK — el Admin SDK bypassea estas rules.
+      match /dispositivos/{deviceId} {
+        allow read: if isOwner(uid) || isAdmin();
+        // sin allow write/create/update/delete → bloqueado para clientes
+      }
+
+      // Mediciones biométricas diarias. Doc id = fecha ISO (ej. "2026-06-16").
+      // El cliente (NeuroScan en navegador) puede crear/actualizar el doc,
+      // pero NO puede tocar fuentes.reloj — ese bloque solo lo puebla la
+      // Cloud Function de sync vía Admin SDK.
+      match /mediciones/{fecha} {
+        function relojNoDeclarado() {
+          return !('reloj' in request.resource.data.fuentes)
+            || request.resource.data.fuentes.reloj.disponible == false;
+        }
+        function relojIntacto() {
+          return request.resource.data.fuentes.reloj == resource.data.fuentes.reloj;
+        }
+
+        allow read:   if isOwner(uid) || isAdmin();
+        allow create: if isOwner(uid)
+          && request.resource.data.fecha == fecha
+          && 'fuentes' in request.resource.data
+          && relojNoDeclarado();
+        allow update: if isOwner(uid) && relojIntacto();
+        allow delete: if isOwner(uid);
+      }
     }
 
     // Registros diarios
