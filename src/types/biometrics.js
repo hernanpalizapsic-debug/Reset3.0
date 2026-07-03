@@ -93,7 +93,7 @@
 /**
  * @typedef {Object} Resumen
  * @property {FuenteId} fuentePrincipal        — cuál fuente pesó más al armar el índice del día
- * @property {number} indiceCompuesto          — 0-100, score normalizado del día
+ * @property {number | null} indiceCompuesto   — 0-100, score normalizado del día; null si aún no hay suficiente info para agregarlo (p.ej. medición cámara sin reloj)
  * @property {Tendencia} tendenciaSemana       — comparado contra el rolling de 7 días previo
  */
 

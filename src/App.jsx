@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import NavBar from './components/shared/NavBar';
+import EvaluacionResultado from './components/shared/EvaluacionResultado';
 import Login from './pages/Login';
 import Registro from './pages/Registro';
 import Inicio from './pages/participant/Inicio';
@@ -31,6 +32,7 @@ function AppRutas() {
   return (
     <>
       {currentUser && <NavBar />}
+      {currentUser && <EvaluacionResultado />}
       <main className={currentUser ? 'with-nav' : ''}>
         <Routes>
           <Route path="/login" element={!currentUser ? <Login /> : <Navigate to="/" />} />
