@@ -4,6 +4,7 @@ import { db } from '../../firebase/config';
 import { doc, getDoc } from 'firebase/firestore';
 import { fases } from '../../utils/contenidoFases';
 import { Link } from 'react-router-dom';
+import EvaluacionBiometricaCTA from '../../components/shared/EvaluacionBiometricaCTA';
 
 const estadoColor = { simpatico: '#FF6B6B', dorsal: '#6B9BD2', ventral: '#51CF66' };
 const estadoLabel = { simpatico: '⚡ Simpático', dorsal: '🌊 Dorsal', ventral: '🌿 Ventral' };
@@ -51,6 +52,12 @@ export default function Inicio() {
       <div className="progress-bar-container">
         <div className="progress-bar" style={{ width: `${(diaActual / 28) * 100}%` }} />
       </div>
+
+      <EvaluacionBiometricaCTA
+        dia={diaActual}
+        diaInicio={userData?.diaInicio}
+        currentUser={currentUser}
+      />
 
       <div className="fase-card">
         <div className="fase-semana">Semana {semanaActual}</div>

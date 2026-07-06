@@ -13,13 +13,20 @@ import { useAuth } from '../contexts/AuthContext';
 
 const NEUROSCAN_URL = import.meta.env.VITE_NEUROSCAN_URL || 'https://neuroscan.vercel.app';
 
-/** @type {ReadonlyArray<'inicial'|'semanal'|'final'>} */
-const TIPOS_VALIDOS = ['inicial', 'semanal', 'final'];
+/**
+ * Tipos de evaluación:
+ *   - 'inicial'  → día 1 del programa
+ *   - 'semanal'  → check-ins días 7-9, 14-16, 21-23
+ *   - 'cierre'   → día 28+ del programa
+ *   - 'final'    → alias legacy de 'cierre', mantenido por compat con docs viejos
+ * @type {ReadonlyArray<'inicial'|'semanal'|'final'|'cierre'>}
+ */
+const TIPOS_VALIDOS = ['inicial', 'semanal', 'final', 'cierre'];
 
 /**
  * Abre NeuroScan pasándole uid + tipo + custom token en la URL.
  * @param {import('firebase/auth').User} currentUser
- * @param {'inicial'|'semanal'|'final'} tipo
+ * @param {'inicial'|'semanal'|'final'|'cierre'} tipo
  */
 export async function abrirNeuroScan(currentUser, tipo) {
   if (!currentUser) throw new Error('No hay usuario en sesión');
