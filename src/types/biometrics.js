@@ -99,12 +99,21 @@
 
 // ---------- Doc raíz ----------
 /**
+ * Tipo de evaluación biométrica que generó este documento. Presente cuando
+ * la medición vino vía el bridge desde Reset 3.0. Ausente si el doc se creó
+ * por otra vía (import manual, migración, etc.).
+ *
+ * @typedef {'inicial' | 'semanal' | 'cierre' | 'final'} TipoEvaluacion
+ */
+
+/**
  * Documento en usuarios/{uid}/mediciones/{fechaISO}.
  * Doc id = fecha (string ISO, p.ej. "2026-06-16"). El campo fecha interno
  * debe coincidir con el doc id — lo enforza la rule de create.
  *
  * @typedef {Object} Medicion
  * @property {string} fecha                    — ISO date, igual al doc id
+ * @property {TipoEvaluacion} [tipo]           — qué evaluación disparó Reset 3.0 (opcional; escrito por neuroscanbio/src/metrics-sink.js)
  * @property {{
  *   reloj: FuenteReloj,
  *   camara: FuenteCamara,
