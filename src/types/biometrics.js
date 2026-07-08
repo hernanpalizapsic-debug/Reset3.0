@@ -42,8 +42,10 @@
 
 // ---------- Fuente: cámara (NeuroScan en navegador) ----------
 /**
- * Resultado del módulo HRV por dedo + flash. Coincide con el shape de
- * neuroscan v19 computeMetrics().hrv (ver módulo externo).
+ * Resultado de pulso derivado de cámara.
+ * Fuentes posibles: rPPG (POS + FFT + SNR, la actual "canónica") o dedo
+ * con flash trasero (legacy — se conserva en FuenteCamara.hrv_dedo).
+ * El shape es el mismo para ambas para poder mostrarlas indistintamente.
  *
  * @typedef {Object} HrvCamara
  * @property {boolean} ok
@@ -51,8 +53,10 @@
  * @property {number} [rmssd]
  * @property {number} [sdnn]
  * @property {number} [beats]
- * @property {NivelConfianza} [confidence]
- * @property {number} [beatsDetected]          — presente cuando ok=false: latidos crudos detectados
+ * @property {NivelConfianza} [confidence]        — confianza global (para HR)
+ * @property {NivelConfianza} [rmssd_confidence]  — presente en rPPG: siempre ≤ confidence
+ * @property {number} [snr]                       — SNR espectral en dB (solo rPPG)
+ * @property {number} [beatsDetected]             — presente cuando ok=false (dedo)
  * @property {{torch: string, avgR: number|null, ampPct: number|null}} [diag]
  */
 
@@ -75,7 +79,8 @@
 /**
  * @typedef {Object} FuenteCamara
  * @property {boolean} disponible
- * @property {HrvCamara | null} hrv
+ * @property {HrvCamara | null} hrv               — pulso rPPG (POS + FFT) — fuente canónica de la cámara
+ * @property {HrvCamara | null} [hrv_dedo]        — pulso por dedo con flash trasero (legacy/opcional)
  * @property {Oculomotor | null} oculomotor
  * @property {Plr | null} plr
  * @property {NivelConfianza} confianza_general
