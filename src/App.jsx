@@ -10,6 +10,7 @@ import MomentoNoche from './pages/participant/MomentoNoche';
 import Notas from './pages/participant/Notas';
 import Contenido from './pages/participant/Contenido';
 import Audios from './pages/participant/Audios';
+import MiEvolucion from './pages/participant/MiEvolucion';
 import Dashboard from './pages/admin/Dashboard';
 import './index.css';
 
@@ -43,6 +44,7 @@ function AppRutas() {
           <Route path="/notas" element={<RutaProtegida><Notas /></RutaProtegida>} />
           <Route path="/contenido" element={<RutaProtegida><Contenido /></RutaProtegida>} />
           <Route path="/audios" element={<RutaProtegida><Audios /></RutaProtegida>} />
+          <Route path="/evolucion" element={<RutaProtegida><MiEvolucion /></RutaProtegida>} />
           <Route path="/admin" element={<RutaProtegida rolRequerido="admin"><Dashboard /></RutaProtegida>} />
         </Routes>
       </main>

@@ -20,6 +20,7 @@ export default function NavBar() {
     { path: '/audios', label: 'Audios', icon: '🎧' },
     { path: '/contenido', label: 'Contenido', icon: '📚' },
     { path: '/notas', label: 'Notas', icon: '📝' },
+    { path: '/evolucion', label: 'Evolución', icon: '📈' },
   ];
 
   const navAdmin = [
