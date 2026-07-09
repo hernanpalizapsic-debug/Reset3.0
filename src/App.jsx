@@ -12,6 +12,7 @@ import Contenido from './pages/participant/Contenido';
 import Audios from './pages/participant/Audios';
 import MiEvolucion from './pages/participant/MiEvolucion';
 import Dashboard from './pages/admin/Dashboard';
+import AdminMediciones from './pages/admin/AdminMediciones';
 import './index.css';
 
 function RutaProtegida({ children, rolRequerido }) {
@@ -46,6 +47,7 @@ function AppRutas() {
           <Route path="/audios" element={<RutaProtegida><Audios /></RutaProtegida>} />
           <Route path="/evolucion" element={<RutaProtegida><MiEvolucion /></RutaProtegida>} />
           <Route path="/admin" element={<RutaProtegida rolRequerido="admin"><Dashboard /></RutaProtegida>} />
+          <Route path="/admin/mediciones" element={<RutaProtegida rolRequerido="admin"><AdminMediciones /></RutaProtegida>} />
         </Routes>
       </main>
     </>

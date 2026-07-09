@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { db } from '../../firebase/config';
 import {
   collection, onSnapshot, query, orderBy,
@@ -121,6 +122,23 @@ export default function Dashboard() {
     <div className="page-container">
       <h1>Panel de administración</h1>
       <p className="subtitulo">Reset 3.0 — Seguimiento en tiempo real</p>
+
+      <Link
+        to="/admin/mediciones"
+        style={{
+          display: 'inline-block',
+          margin: '0 0 16px',
+          padding: '10px 16px',
+          background: '#1c7ed6',
+          color: '#fff',
+          borderRadius: 8,
+          fontSize: 13,
+          fontWeight: 600,
+          textDecoration: 'none',
+        }}
+      >
+        📈 Ver mediciones biométricas
+      </Link>
 
       <div className="stats-grid">
         <div className="stat-card">

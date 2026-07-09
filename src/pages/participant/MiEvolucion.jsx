@@ -9,20 +9,12 @@
 
 import { useEffect, useState } from 'react';
 import { collection, getDocs, orderBy, query } from 'firebase/firestore';
-import {
-  CartesianGrid,
-  Legend,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
 import { db } from '../../firebase/config';
 import { useAuth } from '../../contexts/AuthContext';
 import { abrirNeuroScan } from '../../lib/neuroscan';
 import { phrasesFromMedicion, formatFecha } from '../../lib/interpretaciones';
+import { calcularTendencia } from '../../lib/tendencia';
+import GraficoTendencia from '../../components/shared/GraficoTendencia';
 
 // ---------- estilos ----------
 
@@ -38,14 +30,6 @@ const cardTextStyle = { margin: 0, fontSize: 13, color: '#495057', lineHeight: 1
 const trendCard = {
   background: 'linear-gradient(135deg, #e7f5ff 0%, #d0ebff 100%)',
   border: '1px solid #a5d8ff', borderRadius: 16, padding: 18, margin: '16px 0',
-};
-const chartCard = {
-  background: '#fff', border: '1px solid #dee2e6', borderRadius: 12,
-  padding: '16px 8px 8px', margin: '16px 0',
-};
-const chartTitleStyle = {
-  margin: '0 8px 12px', fontSize: 12, fontWeight: 700, color: '#495057',
-  textTransform: 'uppercase', letterSpacing: 1,
 };
 const trendTitleStyle = {
   margin: '0 0 8px', fontSize: 12, fontWeight: 700, color: '#1864ab',
@@ -84,171 +68,27 @@ const TIPO_LABELS = {
   final: 'Cierre', // alias legacy
 };
 
-// ---------- tendencia ----------
-
-const CONF_RANK = { Ninguna: 0, Baja: 1, Media: 2, Alta: 3 };
-
-/** "2026-06-16" → "16/06". Para eje X del gráfico. */
-function fechaCorta(iso) {
-  if (!iso) return '';
-  const [, m, d] = iso.split('-');
-  return `${d}/${m}`;
-}
+// ---------- tendencia (fraseo) ----------
 
 /**
- * Arma la serie para recharts. Cada punto tiene los 3 valores (o null si
- * no aplica). connectNulls={false} en cada Line hace que los gaps queden
- * visibles como interrupciones de línea, en vez de forzar una línea recta
- * entre puntos válidos separados por un hueco.
+ * Formatea la tendencia raw (de src/lib/tendencia.js) en frases en segunda
+ * persona ("tu pulso", "tus mediciones"). Mantiene el fraseo original de
+ * la implementación inline previa al extract.
  */
-function buildChartData(medicionesAsc) {
-  return medicionesAsc.map((m) => {
-    const camara = m?.fuentes?.camara;
-    const disponible = !!camara?.disponible;
-    const oculomotor = camara?.oculomotor;
-    const hrv = camara?.hrv;
-    return {
-      fecha: fechaCorta(m.fecha),
-      parpadeo:
-        disponible && oculomotor?.blinkRate != null ? oculomotor.blinkRate : null,
-      estabilidad:
-        disponible && oculomotor?.headStability != null ? oculomotor.headStability : null,
-      pulso:
-        disponible && hrv?.ok && hrv.bpm != null ? hrv.bpm : null,
-    };
-  });
-}
-
-function GraficoTendencia({ mediciones }) {
-  // Con menos de 2 puntos válidos no hay tendencia que mostrar.
-  const data = buildChartData(mediciones);
-  const validos = data.filter(
-    (d) => d.parpadeo != null || d.estabilidad != null || d.pulso != null
-  );
-  if (validos.length < 2) return null;
-
-  const hayPulso = data.some((d) => d.pulso != null);
-
-  const tooltipFormatter = (value, name) => {
-    if (name === 'Parpadeo') return [`${value}/min`, name];
-    if (name === 'Estabilidad postural') return [Number(value).toFixed(2), name];
-    if (name === 'Pulso') return [`${value} BPM`, name];
-    return [value, name];
-  };
-
-  return (
-    <div style={chartCard}>
-      <p style={chartTitleStyle}>Cómo evolucionan tus métricas</p>
-      <ResponsiveContainer width="100%" height={240}>
-        <LineChart data={data} margin={{ top: 8, right: 8, left: -10, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e9ecef" />
-          <XAxis
-            dataKey="fecha"
-            tick={{ fontSize: 11, fill: '#868e96' }}
-            tickMargin={6}
-          />
-          <YAxis
-            yAxisId="left"
-            tick={{ fontSize: 11, fill: '#868e96' }}
-            width={32}
-            domain={[0, 'dataMax + 2']}
-          />
-          {hayPulso && (
-            <YAxis
-              yAxisId="right"
-              orientation="right"
-              tick={{ fontSize: 11, fill: '#868e96' }}
-              width={32}
-              domain={['dataMin - 5', 'dataMax + 5']}
-            />
-          )}
-          <Tooltip
-            contentStyle={{
-              borderRadius: 8,
-              border: '1px solid #dee2e6',
-              fontSize: 12,
-            }}
-            formatter={tooltipFormatter}
-          />
-          <Legend
-            wrapperStyle={{ fontSize: 12, paddingTop: 6 }}
-            iconType="circle"
-          />
-          <Line
-            yAxisId="left"
-            type="monotone"
-            dataKey="parpadeo"
-            name="Parpadeo"
-            stroke="#1c7ed6"
-            strokeWidth={2}
-            connectNulls={false}
-            dot={{ r: 3, strokeWidth: 0, fill: '#1c7ed6' }}
-            activeDot={{ r: 5 }}
-          />
-          <Line
-            yAxisId="left"
-            type="monotone"
-            dataKey="estabilidad"
-            name="Estabilidad postural"
-            stroke="#37b24d"
-            strokeWidth={2}
-            connectNulls={false}
-            dot={{ r: 3, strokeWidth: 0, fill: '#37b24d' }}
-            activeDot={{ r: 5 }}
-          />
-          {hayPulso && (
-            <Line
-              yAxisId="right"
-              type="monotone"
-              dataKey="pulso"
-              name="Pulso"
-              stroke="#e64980"
-              strokeWidth={2}
-              connectNulls={false}
-              dot={{ r: 3, strokeWidth: 0, fill: '#e64980' }}
-              activeDot={{ r: 5 }}
-            />
-          )}
-        </LineChart>
-      </ResponsiveContainer>
-      <p style={{ margin: '4px 12px 0', fontSize: 10, color: '#adb5bd' }}>
-        Parpadeo y estabilidad en el eje izquierdo. Pulso en el eje derecho (solo si hay dato).
-      </p>
-    </div>
-  );
-}
-
-function calcularTendencia(medicionesAsc) {
-  const validas = medicionesAsc.filter(
-    (m) => m?.fuentes?.camara?.hrv?.ok === true && m.fuentes.camara.hrv.bpm != null
-  );
-  if (validas.length < 2) return null;
-  const primera = validas[0];
-  const ultima = validas[validas.length - 1];
-  const bpm1 = primera.fuentes.camara.hrv.bpm;
-  const bpm2 = ultima.fuentes.camara.hrv.bpm;
-  const delta = bpm2 - bpm1;
-  const absDelta = Math.abs(delta);
-  const f1 = formatFecha(primera.fecha);
-  const f2 = formatFecha(ultima.fecha);
-
+function frasearTendenciaSelf(t) {
+  const f1 = formatFecha(t.primeraFecha);
+  const f2 = formatFecha(t.ultimaFecha);
   let bpmLinea;
-  if (absDelta < 2) {
-    bpmLinea = `Entre tus ${validas.length} mediciones con pulso claro, tu ritmo cardíaco se mantuvo estable alrededor de ${bpm2} BPM.`;
-  } else if (delta < 0) {
-    bpmLinea = `Entre tu primera evaluación (${f1}) y la última (${f2}), tu pulso en reposo bajó de ${bpm1} a ${bpm2} BPM.`;
+  if (t.direction === 'estable') {
+    bpmLinea = `Entre tus ${t.count} mediciones con pulso claro, tu ritmo cardíaco se mantuvo estable alrededor de ${t.bpm2} BPM.`;
+  } else if (t.direction === 'baja') {
+    bpmLinea = `Entre tu primera evaluación (${f1}) y la última (${f2}), tu pulso en reposo bajó de ${t.bpm1} a ${t.bpm2} BPM.`;
   } else {
-    bpmLinea = `Entre tu primera evaluación (${f1}) y la última (${f2}), tu pulso en reposo subió de ${bpm1} a ${bpm2} BPM.`;
+    bpmLinea = `Entre tu primera evaluación (${f1}) y la última (${f2}), tu pulso en reposo subió de ${t.bpm1} a ${t.bpm2} BPM.`;
   }
-
-  const c1 = CONF_RANK[primera.fuentes.camara.hrv.confidence];
-  const c2 = CONF_RANK[ultima.fuentes.camara.hrv.confidence];
-  let confLinea = null;
-  if (c1 != null && c2 != null && c1 !== c2) {
-    const dir = c2 > c1 ? 'mejoró' : 'bajó';
-    confLinea = `La confianza de la medición ${dir} (${primera.fuentes.camara.hrv.confidence} → ${ultima.fuentes.camara.hrv.confidence}).`;
-  }
-
+  const confLinea = t.confChange
+    ? `La confianza de la medición ${t.confChange.direction === 'mejoro' ? 'mejoró' : 'bajó'} (${t.confChange.from} → ${t.confChange.to}).`
+    : null;
   return { bpmLinea, confLinea };
 }
 
@@ -306,7 +146,8 @@ export default function MiEvolucion() {
     }
   };
 
-  const tendencia = calcularTendencia(mediciones);
+  const tendenciaRaw = calcularTendencia(mediciones);
+  const tendencia = tendenciaRaw ? frasearTendenciaSelf(tendenciaRaw) : null;
   const displayAsc = mediciones;
   const displayDesc = [...mediciones].reverse();
 
