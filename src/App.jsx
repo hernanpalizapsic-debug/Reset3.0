@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import NavBar from './components/shared/NavBar';
 import EvaluacionResultado from './components/shared/EvaluacionResultado';
@@ -13,6 +13,7 @@ import Audios from './pages/participant/Audios';
 import MiEvolucion from './pages/participant/MiEvolucion';
 import Dashboard from './pages/admin/Dashboard';
 import AdminMediciones from './pages/admin/AdminMediciones';
+import PublicAssessment from './pages/assessment/PublicAssessment';
 import './index.css';
 
 function RutaProtegida({ children, rolRequerido }) {
@@ -30,13 +31,22 @@ function RutaRaiz() {
 
 function AppRutas() {
   const { currentUser } = useAuth();
+  const location = useLocation();
+  // El assessment público (/assessment/:token) es standalone: no NavBar
+  // ni modal EvaluacionResultado, aunque el visitante tenga cachedo un
+  // login previo. El ejecutivo B2B no forma parte del programa Reset.
+  const isPublicAssessment = location.pathname.startsWith('/assessment/');
+  const showChrome = currentUser && !isPublicAssessment;
 
   return (
     <>
-      {currentUser && <NavBar />}
-      {currentUser && <EvaluacionResultado />}
-      <main className={currentUser ? 'with-nav' : ''}>
+      {showChrome && <NavBar />}
+      {showChrome && <EvaluacionResultado />}
+      <main className={showChrome ? 'with-nav' : ''}>
         <Routes>
+          {/* PÚBLICA — sin RutaProtegida. El token en URL es la credencial. */}
+          <Route path="/assessment/:token" element={<PublicAssessment />} />
+
           <Route path="/login" element={!currentUser ? <Login /> : <Navigate to="/" />} />
           <Route path="/registro" element={!currentUser ? <Registro /> : <Navigate to="/" />} />
           <Route path="/" element={<RutaProtegida><RutaRaiz /></RutaProtegida>} />

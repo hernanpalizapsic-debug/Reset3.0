@@ -60,5 +60,13 @@ service cloud.firestore {
       allow create: if isOwner(request.resource.data.uid);
       allow read: if isAdmin();
     }
+
+    // Assessments B2B tokenizados: el ejecutivo llega por link WhatsApp
+    // sin cuenta Firebase. Todo I/O va por /api/assessment/* con Admin SDK
+    // (bypass rules). El cliente nunca lee ni escribe directo — el token
+    // en URL es el único secreto y solo lo interpreta el servidor.
+    match /assessments/{tokenId} {
+      allow read, write: if false;
+    }
   }
 }
