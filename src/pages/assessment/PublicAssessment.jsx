@@ -217,7 +217,13 @@ export default function PublicAssessment() {
   if (phase === 'running') {
     const inst = activos[instrIndex];
     return (
+      // key={inst.key} fuerza a React a desmontar + remontar Cuestionario
+      // cuando cambiamos de instrumento. Sin esto, el estado interno (idx,
+      // respuestas) del instrumento anterior queda vivo y rompe si el
+      // siguiente tiene menos ítems (ej. idx=9 de PSS-10 → items[9]
+      // undefined cuando el próximo es ISI con 7 ítems).
       <Cuestionario
+        key={inst.key}
         instrumento={inst}
         subheader={`${instrIndex + 1} / ${activos.length}`}
         onComplete={handleInstrumentComplete}
