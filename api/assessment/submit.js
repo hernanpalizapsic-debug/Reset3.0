@@ -44,33 +44,33 @@ export default async function handler(req, res) {
     }
 
     // Validar respuestas contra los instrumentos licensed. Ignoramos entradas
-    // extra del cliente (defense in depth) — solo escribimos las 3 conocidas.
+    // extra del cliente (defense in depth) — solo escribimos las conocidas.
+    // Cada ítem tiene su propia lista de options (el ISI mezcla escalas
+    // distintas por ítem), así que validamos value ∈ item.options[i].value.
     const respFiltrado = {};
     for (const inst of ASSESSMENT_INSTRUMENTS) {
-      if (inst.licensed === false) continue; // el flujo del cliente ya salteó éste
-      const r = respuestas[inst.id];
+      if (inst.licensed === false) continue; // saltado en el flujo del cliente
+      const r = respuestas[inst.key];
       if (!Array.isArray(r) || r.length !== inst.items.length) {
         return res.status(400).json({
           error: 'invalid_respuestas',
-          instrumento: inst.id,
-          message: `Se esperaba array de ${inst.items.length} respuestas para ${inst.id}.`,
+          instrumento: inst.key,
+          message: `Se esperaba array de ${inst.items.length} respuestas para ${inst.key}.`,
         });
       }
-      for (const v of r) {
-        if (
-          typeof v !== 'number' ||
-          !Number.isFinite(v) ||
-          v < inst.escala.min ||
-          v > inst.escala.max
-        ) {
+      for (let i = 0; i < r.length; i++) {
+        const v = r[i];
+        const allowed = inst.items[i].options.map((o) => o.value);
+        if (!Number.isInteger(v) || !allowed.includes(v)) {
           return res.status(400).json({
             error: 'invalid_value',
-            instrumento: inst.id,
-            message: `Valores deben ser números en [${inst.escala.min}, ${inst.escala.max}].`,
+            instrumento: inst.key,
+            item: inst.items[i].id,
+            message: `Valor "${v}" no está en las opciones válidas del ítem ${inst.items[i].id}.`,
           });
         }
       }
-      respFiltrado[inst.id] = r;
+      respFiltrado[inst.key] = r;
     }
 
     const scores = scoreAssessment(respFiltrado);

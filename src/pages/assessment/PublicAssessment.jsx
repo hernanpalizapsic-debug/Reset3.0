@@ -128,7 +128,10 @@ export default function PublicAssessment() {
 
   function handleInstrumentComplete(respArr) {
     const inst = activos[instrIndex];
-    const nextResp = { ...respuestasSoFar, [inst.id]: respArr };
+    // Uso inst.key (no inst.id) — la shape de instruments.js usa `key` como
+    // identificador semántico ('pss10' | 'isi' | 'claridad'). scoreAssessment
+    // espera ese mismo nombre.
+    const nextResp = { ...respuestasSoFar, [inst.key]: respArr };
     setRespuestasSoFar(nextResp);
     if (instrIndex + 1 >= activos.length) {
       submit(nextResp);

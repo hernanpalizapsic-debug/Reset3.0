@@ -1,9 +1,17 @@
 // Componente genérico de cuestionario — una pregunta por pantalla,
 // mobile-first, con progress bar y navegación previa/siguiente.
 //
+// Consume la shape de src/lib/instruments.js:
+//   { key, title, instructions, items: [{ id, text, options: [{label, value}] }] }
+//
+// Cada ítem tiene su propia lista `options` (permite que instrumentos como
+// el ISI mezclen escalas distintas por ítem — severity 1a-1c vs 0-4 en 2-5).
+//
 // Props:
-//   instrumento: Instrument (ver src/lib/instruments.js)
-//   onComplete(respuestas: number[]): void — largo === instrumento.items.length
+//   instrumento: Instrument
+//   onComplete(respuestas: number[]): void — largo === instrumento.items.length,
+//     cada valor es el .value de la opción elegida en ese ítem.
+//   subheader?: string — texto pequeño arriba (ej. "1/2")
 
 import { useState } from 'react';
 
@@ -28,6 +36,13 @@ const titleStyle = {
   fontSize: 16,
   fontWeight: 600,
   color: '#495057',
+};
+const instructionsStyle = {
+  margin: '0 0 12px',
+  fontSize: 13,
+  color: '#495057',
+  lineHeight: 1.5,
+  fontStyle: 'italic',
 };
 const progressWrap = {
   height: 6,
@@ -102,7 +117,7 @@ const btnDisabled = { opacity: 0.5, cursor: 'not-allowed' };
 
 /**
  * @param {{
- *   instrumento: import('../../lib/instruments').Instrument,
+ *   instrumento: object,
  *   onComplete: (respuestas: number[]) => void,
  *   subheader?: string,
  * }} props
@@ -116,13 +131,6 @@ export default function Cuestionario({ instrumento, onComplete, subheader }) {
   const item = instrumento.items[idx];
   const current = respuestas[idx];
   const isLast = idx === total - 1;
-
-  const { min, max, labels } = instrumento.escala;
-  const opciones = [];
-  for (let v = min; v <= max; v++) {
-    const label = labels?.[v - min] ?? String(v);
-    opciones.push({ v, label });
-  }
 
   function pick(v) {
     const next = respuestas.slice();
@@ -143,25 +151,29 @@ export default function Cuestionario({ instrumento, onComplete, subheader }) {
   return (
     <div style={wrap}>
       <div style={headerRow}>
-        <span>{subheader || instrumento.titulo}</span>
+        <span>{subheader || instrumento.title}</span>
         <span>
           Pregunta {idx + 1} de {total}
         </span>
       </div>
-      <h2 style={titleStyle}>{instrumento.titulo}</h2>
+      <h2 style={titleStyle}>{instrumento.title}</h2>
+      {/* Instrucciones solo en la primera pregunta — evita ruido en las siguientes. */}
+      {idx === 0 && instrumento.instructions && (
+        <p style={instructionsStyle}>{instrumento.instructions}</p>
+      )}
       <div style={progressWrap}>
         <div style={{ ...progressFill, width: `${((idx + 1) / total) * 100}%` }} />
       </div>
 
-      <p style={questionStyle}>{item.texto}</p>
+      <p style={questionStyle}>{item.text}</p>
 
       <div style={optionsWrap}>
-        {opciones.map(({ v, label }) => (
+        {item.options.map(({ value, label }) => (
           <button
-            key={v}
-            onClick={() => pick(v)}
-            style={current === v ? optionSelected : optionIdle}
-            aria-pressed={current === v}
+            key={value}
+            onClick={() => pick(value)}
+            style={current === value ? optionSelected : optionIdle}
+            aria-pressed={current === value}
           >
             {label}
           </button>
