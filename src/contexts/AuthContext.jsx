@@ -5,6 +5,7 @@ import {
   signInWithEmailAndPassword,
   signOut,
   createUserWithEmailAndPassword,
+  sendEmailVerification,
 } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
@@ -25,6 +26,7 @@ function withTimeout(promise, ms, fallback) {
 export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [userRole, setUserRole] = useState(null);
+  const [emailVerified, setEmailVerified] = useState(false);
   const [loading, setLoading] = useState(true);
 
   async function login(email, password) {
@@ -33,6 +35,8 @@ export function AuthProvider({ children }) {
 
   async function register(email, password, nombre, apellido) {
     const cred = await createUserWithEmailAndPassword(auth, email, password);
+    // Fire and forget: si falla el envío inicial, el usuario podrá reenviar desde /verificar-email
+    sendEmailVerification(cred.user).catch(() => {});
     await setDoc(doc(db, 'usuarios', cred.user.uid), {
       email,
       nombre,
@@ -44,8 +48,23 @@ export function AuthProvider({ children }) {
     return cred;
   }
 
+  async function resendVerificationEmail() {
+    if (!auth.currentUser) throw new Error('No hay sesión activa.');
+    await sendEmailVerification(auth.currentUser);
+  }
+
+  // Recarga el user desde Firebase (para detectar cuando ya verificó su email).
+  async function refreshUser() {
+    if (!auth.currentUser) return false;
+    await auth.currentUser.reload();
+    const verified = !!auth.currentUser.emailVerified;
+    setEmailVerified(verified);
+    return verified;
+  }
+
   async function logout() {
     setUserRole(null);
+    setEmailVerified(false);
     return signOut(auth);
   }
 
@@ -70,14 +89,17 @@ export function AuthProvider({ children }) {
           const rol = await fetchRole(user.uid, user.email);
           setCurrentUser(user);
           setUserRole(rol);
+          setEmailVerified(!!user.emailVerified);
         } else {
           setCurrentUser(null);
           setUserRole(null);
+          setEmailVerified(false);
         }
       } catch {
         // Si onAuthStateChanged falla por completo, desbloqueamos igual
         setCurrentUser(null);
         setUserRole(null);
+        setEmailVerified(false);
       } finally {
         setLoading(false);
       }
@@ -86,7 +108,19 @@ export function AuthProvider({ children }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ currentUser, userRole, login, register, logout, loading }}>
+    <AuthContext.Provider
+      value={{
+        currentUser,
+        userRole,
+        emailVerified,
+        login,
+        register,
+        logout,
+        resendVerificationEmail,
+        refreshUser,
+        loading,
+      }}
+    >
       {!loading && children}
     </AuthContext.Provider>
   );

@@ -4,6 +4,7 @@ import NavBar from './components/shared/NavBar';
 import EvaluacionResultado from './components/shared/EvaluacionResultado';
 import Login from './pages/Login';
 import Registro from './pages/Registro';
+import VerificarEmail from './pages/VerificarEmail';
 import Inicio from './pages/participant/Inicio';
 import FlujoDiario from './pages/participant/FlujoDiario';
 import MomentoNoche from './pages/participant/MomentoNoche';
@@ -17,8 +18,10 @@ import PublicAssessment from './pages/assessment/PublicAssessment';
 import './index.css';
 
 function RutaProtegida({ children, rolRequerido }) {
-  const { currentUser, userRole } = useAuth();
+  const { currentUser, userRole, emailVerified } = useAuth();
   if (!currentUser) return <Navigate to="/login" />;
+  // Admin no requiere verificación (whitelist por email en AuthContext).
+  if (!emailVerified && userRole !== 'admin') return <Navigate to="/verificar-email" replace />;
   if (rolRequerido && userRole !== rolRequerido) return <Navigate to="/" />;
   return children;
 }
@@ -30,13 +33,16 @@ function RutaRaiz() {
 }
 
 function AppRutas() {
-  const { currentUser } = useAuth();
+  const { currentUser, emailVerified, userRole } = useAuth();
   const location = useLocation();
   // El assessment público (/assessment/:token) es standalone: no NavBar
   // ni modal EvaluacionResultado, aunque el visitante tenga cachedo un
   // login previo. El ejecutivo B2B no forma parte del programa Reset.
   const isPublicAssessment = location.pathname.startsWith('/assessment/');
-  const showChrome = currentUser && !isPublicAssessment;
+  const isVerifyRoute = location.pathname === '/verificar-email';
+  // Sin chrome en assessment público ni en la pantalla de verificación
+  // (para no exponer NavBar antes de verificar).
+  const showChrome = currentUser && !isPublicAssessment && !isVerifyRoute && (emailVerified || userRole === 'admin');
 
   return (
     <>
@@ -49,6 +55,16 @@ function AppRutas() {
 
           <Route path="/login" element={!currentUser ? <Login /> : <Navigate to="/" />} />
           <Route path="/registro" element={!currentUser ? <Registro /> : <Navigate to="/" />} />
+          <Route
+            path="/verificar-email"
+            element={
+              !currentUser
+                ? <Navigate to="/login" replace />
+                : (emailVerified || userRole === 'admin')
+                  ? <Navigate to="/" replace />
+                  : <VerificarEmail />
+            }
+          />
           <Route path="/" element={<RutaProtegida><RutaRaiz /></RutaProtegida>} />
           <Route path="/flujo" element={<RutaProtegida><FlujoDiario /></RutaProtegida>} />
           <Route path="/noche" element={<RutaProtegida><MomentoNoche /></RutaProtegida>} />
