@@ -88,6 +88,14 @@ function validateSample(s) {
   if (!Number.isInteger(s.timestamp) || s.timestamp <= 0) return 'invalid_timestamp';
   if (typeof s.value !== 'number' || !Number.isFinite(s.value)) return 'invalid_value';
   if (typeof s.unit !== 'string' || !s.unit.length || s.unit.length > MAX_STRING_LEN) return 'invalid_unit';
+  // deviceModel: opcional. Modelo/nombre del wearable de origen (sourceName del
+  // plugin de salud). Covariable de calidad de dato para informes; a propósito
+  // NO participa del doc ID para no romper la idempotencia por timestamp.
+  if (s.deviceModel !== undefined) {
+    if (typeof s.deviceModel !== 'string' || !s.deviceModel.length || s.deviceModel.length > MAX_STRING_LEN) {
+      return 'invalid_deviceModel';
+    }
+  }
   return null;
 }
 
@@ -143,6 +151,7 @@ export default async function handler(req, res) {
           value: s.value,
           unit: s.unit,
           sourceDevice, // valor original, sin sanitizar
+          ...(s.deviceModel !== undefined && { deviceModel: s.deviceModel }),
           recibidoEn,
         });
       }
@@ -162,6 +171,7 @@ export default async function handler(req, res) {
         value: data.value,
         unit: data.unit,
         sourceDevice: data.sourceDevice,
+        ...(data.deviceModel !== undefined && { deviceModel: data.deviceModel }),
       };
     });
     return res.status(200).json({ samples, count: samples.length });
