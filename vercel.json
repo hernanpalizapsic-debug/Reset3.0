@@ -9,5 +9,10 @@
       "path": "/api/recordatorio-noche",
       "schedule": "0 0 * * *"
     }
-  ]
+  ],
+  "functions": {
+    "api/health-data.js": {
+      "maxDuration": 10
+    }
+  }
 }
