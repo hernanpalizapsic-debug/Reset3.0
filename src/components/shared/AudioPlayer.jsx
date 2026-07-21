@@ -28,34 +28,47 @@ export default function AudioPlayer({ src, dark = false }) {
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [ready, setReady] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
     // Reset state when src changes
     setPlaying(false);
     setCurrentTime(0);
     setDuration(0);
-    setReady(false);
+    setLoading(false);
+    setError(false);
   }, [src]);
 
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
-    const onMeta = () => setDuration(audio.duration);
+    const onMeta = () => {
+      if (isFinite(audio.duration)) setDuration(audio.duration);
+    };
     const onTime = () => setCurrentTime(audio.currentTime);
     const onEnded = () => setPlaying(false);
-    const onCanPlay = () => setReady(true);
+    const onWaiting = () => setLoading(true);
+    const onPlaying = () => { setLoading(false); setPlaying(true); setError(false); };
+    const onPause = () => setPlaying(false);
+    const onError = () => { setError(true); setLoading(false); setPlaying(false); };
     audio.addEventListener('loadedmetadata', onMeta);
+    audio.addEventListener('durationchange', onMeta);
     audio.addEventListener('timeupdate', onTime);
     audio.addEventListener('ended', onEnded);
-    audio.addEventListener('canplay', onCanPlay);
+    audio.addEventListener('waiting', onWaiting);
+    audio.addEventListener('playing', onPlaying);
+    audio.addEventListener('pause', onPause);
+    audio.addEventListener('error', onError);
     return () => {
       audio.removeEventListener('loadedmetadata', onMeta);
+      audio.removeEventListener('durationchange', onMeta);
       audio.removeEventListener('timeupdate', onTime);
       audio.removeEventListener('ended', onEnded);
-      audio.removeEventListener('canplay', onCanPlay);
+      audio.removeEventListener('waiting', onWaiting);
+      audio.removeEventListener('playing', onPlaying);
+      audio.removeEventListener('pause', onPause);
+      audio.removeEventListener('error', onError);
     };
   }, []);
 
@@ -64,10 +77,19 @@ export default function AudioPlayer({ src, dark = false }) {
     if (!audio) return;
     if (playing) {
       audio.pause();
-      setPlaying(false);
-    } else {
-      audio.play();
-      setPlaying(true);
+      return;
+    }
+    setError(false);
+    setLoading(true);
+    // Safari exige que .play() se llame sincrónicamente dentro del handler del gesto
+    // de usuario (sin await previo) para desbloquear la reproducción.
+    const p = audio.play();
+    if (p && typeof p.then === 'function') {
+      p.catch(() => {
+        setError(true);
+        setLoading(false);
+        setPlaying(false);
+      });
     }
   }
 
@@ -83,14 +105,13 @@ export default function AudioPlayer({ src, dark = false }) {
 
   return (
     <div className={`audio-player${dark ? ' audio-player-dark' : ''}`}>
-      <audio ref={audioRef} src={src} preload="metadata" />
+      <audio ref={audioRef} src={src} preload="metadata" playsInline />
       <button
         className={`audio-play-btn ${playing ? 'pause' : 'play'}`}
         onClick={togglePlay}
-        disabled={!ready}
-        aria-label={playing ? 'Pausar' : 'Reproducir'}
+        aria-label={playing ? 'Pausar' : error ? 'Reintentar' : 'Reproducir'}
       >
-        {!ready ? <span className="audio-spinner" /> : playing ? <PauseIcon /> : <PlayIcon />}
+        {loading ? <span className="audio-spinner" /> : playing ? <PauseIcon /> : <PlayIcon />}
       </button>
       <div className="audio-controls">
         <div
