@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { db } from '../../firebase/config';
+import { auth, db } from '../../firebase/config';
 import {
   collection, onSnapshot, query, orderBy,
   where, getDocs,
@@ -48,7 +48,33 @@ export default function Dashboard() {
   const [notasMap, setNotasMap] = useState({});   // uid → nota más reciente
   const [filtro, setFiltro] = useState('todos');
   const [historialUid, setHistorialUid] = useState(null);
+  const [aprobandoUid, setAprobandoUid] = useState(null); // uid con acción en curso
+  const [errorAprobacion, setErrorAprobacion] = useState('');
   const hoy = new Date().toISOString().split('T')[0];
+
+  async function decidirAprobacion(uid, action) {
+    setErrorAprobacion('');
+    setAprobandoUid(`${uid}:${action}`);
+    try {
+      const token = await auth.currentUser.getIdToken();
+      const res = await fetch('/api/admin/approve-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ uid, action }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `HTTP ${res.status}`);
+      }
+      // El onSnapshot de usuarios refleja el cambio automáticamente.
+    } catch (err) {
+      setErrorAprobacion(`No se pudo ${action}: ${err.message}`);
+    }
+    setAprobandoUid(null);
+  }
 
   // Usuarios y registros en tiempo real
   useEffect(() => {
@@ -93,6 +119,9 @@ export default function Dashboard() {
   }, [usuarios]);
 
   const participantes = usuarios.filter((u) => u.rol === 'participante');
+  const pendientes = usuarios.filter(
+    (u) => u.rol === 'participante' && u.estadoAprobacion === 'pendiente'
+  );
 
   // For display of morning-specific data (state, AI conversation)
   const registrosDiurnos = registros.filter((r) => r.tipo !== 'noche');
@@ -139,6 +168,94 @@ export default function Dashboard() {
       >
         📈 Ver mediciones biométricas
       </Link>
+
+      {/* Pendientes de aprobación */}
+      <div
+        style={{
+          margin: '0 0 24px',
+          padding: 16,
+          background: '#FFF9DB',
+          border: '1px solid #FFE066',
+          borderRadius: 12,
+        }}
+      >
+        <h2 style={{ margin: '0 0 12px', fontSize: 16, color: '#8B6D00' }}>
+          ⏳ Pendientes de aprobación ({pendientes.length})
+        </h2>
+        {errorAprobacion && (
+          <div className="alert alert-error" style={{ marginBottom: 12 }}>
+            {errorAprobacion}
+          </div>
+        )}
+        {pendientes.length === 0 ? (
+          <p style={{ margin: 0, fontSize: 13, color: '#6b6b6b' }}>
+            No hay solicitudes pendientes.
+          </p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {pendientes.map((u) => {
+              const creado = u.creadoEn?.toDate?.() ?? u.creadoEn;
+              const fechaStr = creado ? new Date(creado).toLocaleDateString('es-AR', {
+                day: '2-digit', month: '2-digit', year: 'numeric',
+              }) : '-';
+              const nombre = [u.nombre, u.apellido].filter(Boolean).join(' ') || '(sin nombre)';
+              const enCurso = aprobandoUid?.startsWith(`${u.id}:`);
+              return (
+                <div
+                  key={u.id}
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    gap: 12,
+                    padding: 12,
+                    background: '#fff',
+                    borderRadius: 8,
+                    border: '1px solid #FFE58F',
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <div style={{ minWidth: 0, flex: '1 1 200px' }}>
+                    <div style={{ fontWeight: 600, fontSize: 14 }}>{nombre}</div>
+                    <div style={{ fontSize: 12, color: '#6b6b6b', wordBreak: 'break-all' }}>
+                      {u.email}
+                    </div>
+                    <div style={{ fontSize: 11, color: '#adb5bd', marginTop: 2 }}>
+                      Registrado: {fechaStr}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                      className="btn btn-primary"
+                      style={{ fontSize: 13, padding: '6px 12px' }}
+                      onClick={() => decidirAprobacion(u.id, 'aprobar')}
+                      disabled={enCurso}
+                    >
+                      {aprobandoUid === `${u.id}:aprobar` ? '...' : '✓ Aprobar'}
+                    </button>
+                    <button
+                      style={{
+                        fontSize: 13,
+                        padding: '6px 12px',
+                        background: '#FFF0F0',
+                        color: '#c92a2a',
+                        border: '1px solid #ffc9c9',
+                        borderRadius: 8,
+                        cursor: enCurso ? 'not-allowed' : 'pointer',
+                        opacity: enCurso ? 0.5 : 1,
+                      }}
+                      onClick={() => decidirAprobacion(u.id, 'rechazar')}
+                      disabled={enCurso}
+                    >
+                      {aprobandoUid === `${u.id}:rechazar` ? '...' : '✗ Rechazar'}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
       <div className="stats-grid">
         <div className="stat-card">

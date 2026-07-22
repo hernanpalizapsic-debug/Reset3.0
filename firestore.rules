@@ -13,8 +13,28 @@ service cloud.firestore {
 
     // Usuarios
     match /usuarios/{uid} {
-      allow read, write: if isOwner(uid);
-      allow read: if isAdmin();
+      // Campos de aprobación manual — inmutables desde cliente.
+      // Solo pueden mutar vía Admin SDK (endpoint /api/admin/approve-user)
+      // que bypasea rules. En create, el cliente los DEBE setear a los
+      // valores iniciales (aprobado:false, estadoAprobacion:'pendiente').
+      function camposAprobacionIniciales() {
+        return request.resource.data.aprobado == false
+          && request.resource.data.estadoAprobacion == 'pendiente';
+      }
+      function camposAprobacionIntactos() {
+        let hoy = resource.data;
+        let nuevo = request.resource.data;
+        return nuevo.aprobado == hoy.aprobado
+          && nuevo.get('estadoAprobacion', null) == hoy.get('estadoAprobacion', null)
+          && nuevo.get('fechaAprobacion', null) == hoy.get('fechaAprobacion', null)
+          && nuevo.get('fechaRechazo', null) == hoy.get('fechaRechazo', null)
+          && nuevo.get('aprobadoPor', null) == hoy.get('aprobadoPor', null);
+      }
+
+      allow read: if isOwner(uid) || isAdmin();
+      allow create: if isOwner(uid) && camposAprobacionIniciales();
+      allow update: if isOwner(uid) && camposAprobacionIntactos();
+      allow delete: if false;
 
       // Wearables (Fitbit/Oura/etc.): estado de conexión.
       // Read-only desde cliente. La escritura es exclusiva de Cloud

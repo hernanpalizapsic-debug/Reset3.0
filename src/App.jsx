@@ -5,6 +5,7 @@ import EvaluacionResultado from './components/shared/EvaluacionResultado';
 import Login from './pages/Login';
 import Registro from './pages/Registro';
 import VerificarEmail from './pages/VerificarEmail';
+import CuentaEnRevision from './pages/CuentaEnRevision';
 import Inicio from './pages/participant/Inicio';
 import FlujoDiario from './pages/participant/FlujoDiario';
 import MomentoNoche from './pages/participant/MomentoNoche';
@@ -18,10 +19,12 @@ import PublicAssessment from './pages/assessment/PublicAssessment';
 import './index.css';
 
 function RutaProtegida({ children, rolRequerido }) {
-  const { currentUser, userRole, emailVerified } = useAuth();
+  const { currentUser, userRole, emailVerified, aprobado } = useAuth();
   if (!currentUser) return <Navigate to="/login" />;
-  // Admin no requiere verificación (whitelist por email en AuthContext).
-  if (!emailVerified && userRole !== 'admin') return <Navigate to="/verificar-email" replace />;
+  const esAdmin = userRole === 'admin';
+  // Orden del gate: verificado → aprobado → acceso. Admin bypassea ambos.
+  if (!emailVerified && !esAdmin) return <Navigate to="/verificar-email" replace />;
+  if (!aprobado && !esAdmin) return <Navigate to="/cuenta-en-revision" replace />;
   if (rolRequerido && userRole !== rolRequerido) return <Navigate to="/" />;
   return children;
 }
@@ -33,16 +36,16 @@ function RutaRaiz() {
 }
 
 function AppRutas() {
-  const { currentUser, emailVerified, userRole } = useAuth();
+  const { currentUser, emailVerified, userRole, aprobado } = useAuth();
   const location = useLocation();
   // El assessment público (/assessment/:token) es standalone: no NavBar
   // ni modal EvaluacionResultado, aunque el visitante tenga cachedo un
   // login previo. El ejecutivo B2B no forma parte del programa Reset.
   const isPublicAssessment = location.pathname.startsWith('/assessment/');
-  const isVerifyRoute = location.pathname === '/verificar-email';
-  // Sin chrome en assessment público ni en la pantalla de verificación
-  // (para no exponer NavBar antes de verificar).
-  const showChrome = currentUser && !isPublicAssessment && !isVerifyRoute && (emailVerified || userRole === 'admin');
+  const isGateRoute = location.pathname === '/verificar-email' || location.pathname === '/cuenta-en-revision';
+  const esAdmin = userRole === 'admin';
+  // Chrome solo cuando el usuario tiene acceso pleno (verificado + aprobado, o admin).
+  const showChrome = currentUser && !isPublicAssessment && !isGateRoute && ((emailVerified && aprobado) || esAdmin);
 
   return (
     <>
@@ -60,9 +63,21 @@ function AppRutas() {
             element={
               !currentUser
                 ? <Navigate to="/login" replace />
-                : (emailVerified || userRole === 'admin')
+                : (emailVerified || esAdmin)
                   ? <Navigate to="/" replace />
                   : <VerificarEmail />
+            }
+          />
+          <Route
+            path="/cuenta-en-revision"
+            element={
+              !currentUser
+                ? <Navigate to="/login" replace />
+                : !emailVerified && !esAdmin
+                  ? <Navigate to="/verificar-email" replace />
+                  : (aprobado || esAdmin)
+                    ? <Navigate to="/" replace />
+                    : <CuentaEnRevision />
             }
           />
           <Route path="/" element={<RutaProtegida><RutaRaiz /></RutaProtegida>} />
