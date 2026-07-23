@@ -29,15 +29,34 @@
 
 // ---------- Fuente: reloj (wearable, Fitbit/Oura/...) ----------
 /**
- * Bloque escrito EXCLUSIVAMENTE por la Cloud Function de sync (Admin SDK).
+ * @typedef {'rmssd' | 'sdnn'} HrvMetrica
+ */
+
+/**
+ * @typedef {'franja_fija' | 'sueno_detectado'} MetodoVentanaNocturna
+ */
+
+/**
+ * Bloque escrito EXCLUSIVAMENTE por el rollup server-side (Admin SDK).
  * El cliente no puede modificarlo (ver firestore.rules → relojIntacto).
  *
+ * SDNN y RMSSD son métricas HRV DISTINTAS y NO intercambiables (rangos y
+ * significado fisiológico distintos). Se guardan en campos separados. El
+ * campo hrv_metrica_preferida indica cuál usar como headline en el UI cuando
+ * hay ambas — pero cualquier agregado semanal/mensual debe hacerse por
+ * métrica separada, nunca mezclando SDNN y RMSSD.
+ *
  * @typedef {Object} FuenteReloj
- * @property {boolean} disponible              — true si el sync trajo datos válidos del wearable hoy
- * @property {string | null} dispositivo       — id legible del wearable, p.ej. 'fitbit:charge6' | 'oura:ring4'
- * @property {number | null} hrv_rmssd_nocturno — RMSSD nocturno en ms (típicamente 20-100 en adultos)
- * @property {string | null} fechaSueno        — ISO date del sueño que originó la métrica (p.ej. '2026-06-15')
- * @property {NivelConfianza} confianza
+ * @property {boolean} disponible                        — true si el rollup encontró samples válidos en la ventana
+ * @property {string | null} dispositivo                 — id legible del wearable, p.ej. 'fitbit:charge6' | 'oura:ring4'
+ * @property {number | null} hrv_rmssd_nocturno          — RMSSD nocturno en ms (típicamente 20-100 en adultos)
+ * @property {number | null} hrv_sdnn_nocturno           — SDNN nocturno en ms (típicamente 50-200 en adultos)
+ * @property {HrvMetrica | null} hrv_metrica_preferida   — cuál mostrar como headline si hay ambas
+ * @property {string | null} fechaSueno                  — ISO date del inicio del sueño (día anterior al doc en ventana fija)
+ * @property {NivelConfianza} confianza                  — derivada de nSamples + tier del dispositivo
+ * @property {MetodoVentanaNocturna} [metodoVentana]     — 'franja_fija' (fase 1) o 'sueno_detectado' (fase 2)
+ * @property {{ desdeHora: string, hastaHora: string }} [ventana] — bordes de la franja, ej. '22:00'/'07:00'
+ * @property {number} [nSamples]                         — cantidad de muestras HRV usadas para el promedio
  */
 
 // ---------- Fuente: cámara (NeuroScan en navegador) ----------

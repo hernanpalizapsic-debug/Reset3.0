@@ -8,11 +8,18 @@
     {
       "path": "/api/recordatorio-noche",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/health-rollup",
+      "schedule": "0 11 * * *"
     }
   ],
   "functions": {
     "api/health-data.js": {
       "maxDuration": 10
+    },
+    "api/health-rollup.js": {
+      "maxDuration": 60
     }
   }
 }

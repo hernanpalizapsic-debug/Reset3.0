@@ -9,6 +9,7 @@
 import './_firebaseAdmin.js';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { getAuth as getAdminAuth } from 'firebase-admin/auth';
+import { rollupDiasAfectados } from './_healthRollup.js';
 
 const ALLOWED_ORIGINS = new Set([
   'https://resetejecutivo.app',
@@ -157,7 +158,21 @@ export default async function handler(req, res) {
       }
       await batch.commit();
 
-      return res.status(200).json({ success: true, count: samples.length });
+      // Rollup inline: recalcula fuentes.reloj de los días tocados por este batch.
+      // Idempotente. Si falla, los samples ya quedaron persistidos y el cron
+      // nightly como safety net los recuperará — no bloqueamos la respuesta.
+      let rollup = null;
+      try {
+        rollup = await rollupDiasAfectados({ db, uid: decoded.uid, samples });
+      } catch (err) {
+        console.error('[health-data] rollup fallo (samples ya persistidos)', err);
+      }
+
+      return res.status(200).json({
+        success: true,
+        count: samples.length,
+        ...(rollup && { rollup: { dias: rollup.dias, errores: rollup.errors } }),
+      });
     }
 
     // GET

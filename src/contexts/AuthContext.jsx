@@ -41,6 +41,10 @@ export function AuthProvider({ children }) {
     const cred = await createUserWithEmailAndPassword(auth, email, password);
     // Fire and forget: si falla el envío inicial, el usuario podrá reenviar desde /verificar-email
     sendEmailVerification(cred.user).catch(() => {});
+    // Detección de TZ del browser con fallback a Buenos Aires. Guardarlo en el
+    // user doc permite al rollup HRV agrupar samples por día LOCAL del usuario.
+    const timezone =
+      Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Argentina/Buenos_Aires';
     await setDoc(doc(db, 'usuarios', cred.user.uid), {
       email,
       nombre,
@@ -48,6 +52,7 @@ export function AuthProvider({ children }) {
       rol: 'participante',
       diaInicio: new Date().toISOString().split('T')[0],
       creadoEn: new Date(),
+      timezone,
       // Gate de aprobación manual — inmutables desde cliente por firestore.rules.
       aprobado: false,
       estadoAprobacion: 'pendiente',
